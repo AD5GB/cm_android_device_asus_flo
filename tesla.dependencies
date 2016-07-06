@@ -2,7 +2,7 @@
  {
    "repository": "AD5GB/android_kernel_google_msm",
    "target_path": "kernel/google/msm",
-   "branch": "cm-13.0"
+   "branch": "Wicked"
  },
  {
    "repository": "TheMuppets/proprietary_vendor_asus",
