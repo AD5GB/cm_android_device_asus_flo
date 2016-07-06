@@ -260,8 +260,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     dalvik.vm.dex2oat-swap=false
 
-PRODUCT_PACKAGES += \
-    power.flo
+# PRODUCT_PACKAGES += \
+#     power.flo
 
 # NFC packages
 PRODUCT_PACKAGES += \
