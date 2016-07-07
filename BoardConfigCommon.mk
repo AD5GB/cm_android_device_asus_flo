@@ -31,22 +31,22 @@ BOARD_MKBOOTIMG_ARGS := --ramdisk_offset 0x02000000
 
 # Try to build the kernel
 TARGET_KERNEL_SOURCE := kernel/google/msm
-TARGET_KERNEL_CONFIG := wicked_n7_defconfig
-## TARGET_KERNEL_CONFIG := cyanogen_flo_defconfig
+##TARGET_KERNEL_CONFIG := wicked_n7_defconfig
+TARGET_KERNEL_CONFIG := cyanogen_flo_defconfig
 ## TARGET_KERNEL_CROSS_COMPILE_PREFIX := arm-linux-androideabi-
 
 #Opts
-CLANG_O3 := true
+##CLANG_O3 := true
 ##STRICT_ALIASING := true
-KRAIT_TUNINGS := true
-GRAPHITE_OPTS := true
-ENABLE_GCCONLY := true
+##KRAIT_TUNINGS := true
+##GRAPHITE_OPTS := true
+##ENABLE_GCCONLY := true
 
 # Kernel Toolchain
-KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-5.3/bin
+KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-4.9/bin
 KERNEL_TOOLCHAIN_PREFIX := arm-eabi-
 # Rom Toolchain
-TARGET_GCC_VERSION_EXP := 5.3
+# TARGET_GCC_VERSION_EXP := 5.3
 
 BOARD_USES_ALSA_AUDIO:= true
 BOARD_USES_LEGACY_ALSA_AUDIO:= false
