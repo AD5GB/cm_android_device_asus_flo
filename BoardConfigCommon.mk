@@ -36,11 +36,11 @@ TARGET_KERNEL_CONFIG := wicked_n7_defconfig
 ## TARGET_KERNEL_CROSS_COMPILE_PREFIX := arm-linux-androideabi-
 
 #Opts
-#CLANG_O3 := true
-#STRICT_ALIASING := true
-KRAIT_TUNINGS := true
-GRAPHITE_OPTS := true
-#ENABLE_GCCONLY := true
+##CLANG_O3 := true
+##STRICT_ALIASING := true
+##KRAIT_TUNINGS := true
+##GRAPHITE_OPTS := true
+##ENABLE_GCCONLY := true
 
 # Kernel Toolchain
 KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-5.3/bin
