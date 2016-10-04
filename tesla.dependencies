@@ -2,16 +2,16 @@
  {
    "repository": "AD5GB/android_kernel_google_msm",
    "target_path": "kernel/google/msm",
-   "branch": "Wicked-6"
+   "branch": "Wicked-7"
  },
  {
    "repository": "TheMuppets/proprietary_vendor_asus",
    "target_path": "vendor/asus",
-   "branch": "cm-13.0"
+   "branch": "cm-14.0"
  },
  {
    "repository": "CyanogenMod/android_external_stlport",
    "target_path": "external/stlport",
-   "branch": "cm-13.0"
+   "branch": "cm-14.0"
  }
 ]
