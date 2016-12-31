@@ -25,13 +25,51 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <fcntl.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <sys/poll.h>
+#include <pthread.h>
+#include <linux/netlink.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 #include <utils/Log.h>
 
 #include "power.h"
 
 #define STATE_ON "state=1"
+#define STATE_OFF "state=0"
+
+#define MAX_LENGTH         50
+#define BOOST_SOCKET       "/dev/socket/pb"
+
+#define POWERSAVE_MIN_FREQ 384000
+#define POWERSAVE_MAX_FREQ 1026000
+#define BIAS_PERF_MIN_FREQ 1134000
+#define NORMAL_MAX_FREQ 1512000
+
+#define MAX_FREQ_LIMIT_PATH "/sys/kernel/cpufreq_limit/limited_max_freq"
+#define MIN_FREQ_LIMIT_PATH "/sys/kernel/cpufreq_limit/limited_min_freq"
+
+static int client_sockfd;
+static struct sockaddr_un client_addr;
+static int last_state = -1;
+
+static pthread_mutex_t profile_lock = PTHREAD_MUTEX_INITIALIZER;
+
+enum {
+    PROFILE_POWER_SAVE = 0,
+    PROFILE_BALANCED,
+    PROFILE_HIGH_PERFORMANCE,
+    PROFILE_BIAS_POWER,
+    PROFILE_BIAS_PERFORMANCE,
+    PROFILE_MAX
+};
+
+static int current_power_profile = PROFILE_BALANCED;
 
 #define CPUFREQ_LIMIT_PATH "/sys/kernel/cpufreq_limit/"
 #define INTERACTIVE_PATH "/sys/devices/system/cpu/cpufreq/interactive/"
@@ -72,26 +110,13 @@ static int sysfs_write_int(char *path, int value)
 {
     char buf[80];
     snprintf(buf, 80, "%d", value);
-    return sysfs_write_str(path, buf);
-}
-
-static bool check_governor(void)
-{
-    struct stat s;
-    int err = stat(INTERACTIVE_PATH, &s);
-    if (err != 0) return false;
-    if (S_ISDIR(s.st_mode)) return true;
-    return false;
-}
-
-static int is_profile_valid(int profile)
-{
-    return profile >= 0 && profile < PROFILE_MAX;
+    return sysfs_write(path, buf);
 }
 
 static void power_init(__attribute__((unused)) struct power_module *module)
 {
     ALOGI("%s", __func__);
+    socket_init();
 }
 
 static int boostpulse_open()
@@ -143,43 +168,21 @@ static void set_power_profile(int profile)
         return;
     }
 
-    // break out early if governor is not interactive
-    if (!check_governor()) return;
-
-    if (profile == current_power_profile)
+    if (!metadata)
         return;
 
-    ALOGD("%s: setting profile %d", __func__, profile);
-
-    sysfs_write_int(INTERACTIVE_PATH "boost",
-                    profiles[profile].boost);
-    sysfs_write_int(INTERACTIVE_PATH "boostpulse_duration",
-                    profiles[profile].boostpulse_duration);
-    sysfs_write_int(INTERACTIVE_PATH "go_hispeed_load",
-                    profiles[profile].go_hispeed_load);
-    sysfs_write_int(INTERACTIVE_PATH "hispeed_freq",
-                    profiles[profile].hispeed_freq);
-    sysfs_write_str(INTERACTIVE_PATH "above_hispeed_delay",
-                    profiles[profile].above_hispeed_delay);
-    sysfs_write_int(INTERACTIVE_PATH "timer_rate",
-                    profiles[profile].timer_rate);
-    sysfs_write_int(INTERACTIVE_PATH "io_is_busy",
-                    profiles[profile].io_is_busy);
-    sysfs_write_int(INTERACTIVE_PATH "min_sample_time",
-                    profiles[profile].min_sample_time);
-    sysfs_write_int(INTERACTIVE_PATH "max_freq_hysteresis",
-                    profiles[profile].max_freq_hysteresis);
-    sysfs_write_str(INTERACTIVE_PATH "target_loads",
-                    profiles[profile].target_loads);
-    sysfs_write_int(CPUFREQ_LIMIT_PATH "limited_min_freq",
-                    profiles[profile].limited_min_freq);
-    sysfs_write_int(CPUFREQ_LIMIT_PATH "limited_max_freq",
-                    profiles[profile].limited_max_freq);
-
-    current_power_profile = profile;
+    if (!strncmp(metadata, STATE_ON, sizeof(STATE_ON))) {
+        /* Video encode started */
+        sync_thread(1);
+        enc_boost(1);
+    } else if (!strncmp(metadata, STATE_OFF, sizeof(STATE_OFF))) {
+        /* Video encode stopped */
+        sync_thread(0);
+        enc_boost(0);
+    }
 }
 
-static void process_video_encode_hint(void *metadata)
+static void touch_boost()
 {
     int on;
 
@@ -192,62 +195,78 @@ static void process_video_encode_hint(void *metadata)
 
     on = !strncmp(metadata, STATE_ON, sizeof(STATE_ON));
 
-    sysfs_write_int(INTERACTIVE_PATH "timer_rate", on ?
-            VID_ENC_TIMER_RATE :
-            profiles[current_power_profile].timer_rate);
+static void power_set_interactive(__attribute__((unused)) struct power_module *module, int on)
+{
+    if (last_state == on)
+        return;
+
+    last_state = on;
 
     sysfs_write_int(INTERACTIVE_PATH "io_is_busy", on ?
             VID_ENC_IO_IS_BUSY :
             profiles[current_power_profile].io_is_busy);
 }
 
-static void power_hint(__attribute__((unused)) struct power_module *module,
-                       power_hint_t hint, void *data)
-{
-    char buf[80];
-    int len;
+static void set_power_profile(int profile) {
+    int min_freq = POWERSAVE_MIN_FREQ;
+    int max_freq = NORMAL_MAX_FREQ;
 
-    switch (hint) {
-    case POWER_HINT_INTERACTION:
-    case POWER_HINT_LAUNCH_BOOST:
-    case POWER_HINT_CPU_BOOST:
-        if (!is_profile_valid(current_power_profile)) {
-            ALOGD("%s: no power profile selected yet", __func__);
-            return;
-        }
+    ALOGV("%s: profile=%d", __func__, profile);
 
-        if (!profiles[current_power_profile].boostpulse_duration)
-            return;
-
-        // break out early if governor is not interactive
-        if (!check_governor()) return;
-
-        if (boostpulse_open() >= 0) {
-            snprintf(buf, sizeof(buf), "%d", 1);
-            len = write(boostpulse_fd, &buf, sizeof(buf));
-            if (len < 0) {
-                strerror_r(errno, buf, sizeof(buf));
-                ALOGE("Error writing to boostpulse: %s\n", buf);
-
-                pthread_mutex_lock(&lock);
-                close(boostpulse_fd);
-                boostpulse_fd = -1;
-                pthread_mutex_unlock(&lock);
-            }
-        }
+    switch (profile) {
+    case PROFILE_HIGH_PERFORMANCE:
+        min_freq = NORMAL_MAX_FREQ;
+        max_freq = NORMAL_MAX_FREQ;
         break;
-    case POWER_HINT_SET_PROFILE:
-        pthread_mutex_lock(&lock);
-        set_power_profile(*(int32_t *)data);
-        pthread_mutex_unlock(&lock);
+    case PROFILE_BIAS_PERFORMANCE:
+        min_freq = BIAS_PERF_MIN_FREQ;
+        max_freq = NORMAL_MAX_FREQ;
         break;
-    case POWER_HINT_VIDEO_ENCODE:
-        pthread_mutex_lock(&lock);
-        process_video_encode_hint(data);
-        pthread_mutex_unlock(&lock);
+    case PROFILE_BIAS_POWER:
+        min_freq = POWERSAVE_MIN_FREQ;
+        max_freq = POWERSAVE_MAX_FREQ;
+        break;
+    case PROFILE_POWER_SAVE:
+        min_freq = POWERSAVE_MIN_FREQ;
+        max_freq = POWERSAVE_MAX_FREQ;
         break;
     default:
         break;
+    }
+
+    sysfs_write_int(MIN_FREQ_LIMIT_PATH, min_freq);
+    sysfs_write_int(MAX_FREQ_LIMIT_PATH, max_freq);
+
+    current_power_profile = profile;
+
+    ALOGD("%s: set power profile mode: %d", __func__, current_power_profile);
+}
+
+static void power_hint( __attribute__((unused)) struct power_module *module,
+                      power_hint_t hint, void *data)
+{
+    if (hint == POWER_HINT_SET_PROFILE) {
+        pthread_mutex_lock(&profile_lock);
+        set_power_profile(*(int32_t *)data);
+        pthread_mutex_unlock(&profile_lock);
+        return;
+    }
+
+    // Skip other hints in powersave mode
+    if (current_power_profile == PROFILE_POWER_SAVE)
+        return;
+
+    switch (hint) {
+        case POWER_HINT_LAUNCH_BOOST:
+        case POWER_HINT_CPU_BOOST:
+            ALOGV("POWER_HINT_INTERACTION");
+            touch_boost();
+            break;
+        case POWER_HINT_VIDEO_ENCODE:
+            process_video_encode_hint(data);
+            break;
+        default:
+            break;
     }
 }
 
@@ -258,9 +277,9 @@ static struct hw_module_methods_t power_module_methods = {
 static int get_feature(__attribute__((unused)) struct power_module *module,
                        feature_t feature)
 {
-    if (feature == POWER_FEATURE_SUPPORTED_PROFILES) {
+    if (feature == POWER_FEATURE_SUPPORTED_PROFILES)
         return PROFILE_MAX;
-    }
+
     return -1;
 }
 

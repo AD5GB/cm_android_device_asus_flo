@@ -28,6 +28,8 @@ BOARD_KERNEL_PAGESIZE := 2048
 BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.hardware=flo user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3
 BOARD_KERNEL_CMDLINE += vmalloc=340M
 BOARD_MKBOOTIMG_ARGS := --ramdisk_offset 0x02000000
+TARGET_KERNEL_SOURCE := kernel/google/msm
+TARGET_KERNEL_CONFIG := cyanogenmod_flo_defconfig
 
 # Try to build the kernel
 TARGET_KERNEL_SOURCE := kernel/google/msm
@@ -75,6 +77,7 @@ WIFI_DRIVER_FW_PATH_AP  := "ap"
 
 #BOARD_USES_HGL := true
 #BOARD_USES_OVERLAY := true
+NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 USE_OPENGL_RENDERER := true
 PRESENT_TIME_OFFSET_FROM_VSYNC_NS := 3200000
 TARGET_USES_ION := true
@@ -122,7 +125,7 @@ BOARD_PERSISTIMAGE_PARTITION_SIZE := 5242880
 
 TARGET_USES_POST_PROCESSING := true
 TARGET_CUSTOM_DISPLAY_TUNING := true
-TARGET_DISPLAY_USE_RETIRE_FENCE := true
+TARGET_NEEDS_PLATFORM_TEXT_RELOCATIONS := true
 
 USE_DEVICE_SPECIFIC_QCOM_PROPRIETARY := true
 OVERRIDE_RS_DRIVER := libRSDriver_adreno.so
@@ -139,5 +142,15 @@ EXTENDED_FONT_FOOTPRINT := true
 # CM Hardware
 BOARD_USES_CYANOGEN_HARDWARE := true
 BOARD_HARDWARE_CLASS += hardware/cyanogen
+
+# Include an expanded selection of fonts
+EXTENDED_FONT_FOOTPRINT := true
+
+# CM Hardware
+BOARD_HARDWARE_CLASS += \
+    hardware/cyanogen/cmhw
+
+# Recovery
+TARGET_RECOVERY_DENSITY := hdpi
 
 -include vendor/asus/flo/BoardConfigVendor.mk
