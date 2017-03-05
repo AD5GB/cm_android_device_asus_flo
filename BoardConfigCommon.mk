@@ -31,12 +31,10 @@ BOARD_KERNEL_PAGESIZE := 2048
 BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.hardware=flo user_debug=31 msm_rtb.filter=0x3F ehci-hcd.park=3
 BOARD_KERNEL_CMDLINE += vmalloc=340M
 BOARD_MKBOOTIMG_ARGS := --ramdisk_offset 0x02000000
-TARGET_KERNEL_SOURCE := kernel/google/msm
-TARGET_KERNEL_CONFIG := lineageos_flo_defconfig
 
 # Try to build the kernel
 TARGET_KERNEL_SOURCE := kernel/google/msm
-TARGET_KERNEL_CONFIG := wicked_n7_defconfig
+TARGET_KERNEL_CONFIG := wicked_deb_defconfig
 ## TARGET_KERNEL_CONFIG := cyanogen_flo_defconfig
 ## TARGET_KERNEL_CROSS_COMPILE_PREFIX := arm-linux-androideabi-
 
@@ -48,8 +46,8 @@ GRAPHITE_OPTS := true
 ENABLE_GCCONLY := true
 
 # Kernel Toolchain
-KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-5.3/bin
-KERNEL_TOOLCHAIN_PREFIX := arm-eabi-
+##KERNEL_TOOLCHAIN := $(ANDROID_BUILD_TOP)/prebuilts/gcc/$(HOST_OS)-x86/arm/arm-eabi-5.3/bin
+##KERNEL_TOOLCHAIN_PREFIX := arm-eabi-
 # Rom Toolchain
 ##TARGET_GCC_VERSION_EXP := 5.3
 
