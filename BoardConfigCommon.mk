@@ -20,6 +20,9 @@ TARGET_ARCH := arm
 TARGET_ARCH_VARIANT := armv7-a-neon
 TARGET_CPU_VARIANT := krait
 
+# SDClang
+TARGET_USE_SDCLANG := true
+
 TARGET_NO_BOOTLOADER := true
 
 BOARD_KERNEL_BASE := 0x80200000
@@ -29,7 +32,7 @@ BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.hardware=flo user_
 BOARD_KERNEL_CMDLINE += vmalloc=340M
 BOARD_MKBOOTIMG_ARGS := --ramdisk_offset 0x02000000
 TARGET_KERNEL_SOURCE := kernel/google/msm
-TARGET_KERNEL_CONFIG := cyanogenmod_flo_defconfig
+TARGET_KERNEL_CONFIG := lineageos_flo_defconfig
 
 # Try to build the kernel
 TARGET_KERNEL_SOURCE := kernel/google/msm
@@ -85,16 +88,6 @@ TARGET_USES_OVERLAY := true
 TARGET_USES_SF_BYPASS := true
 TARGET_USES_C2D_COMPOSITION := false
 
-# Enable dex-preoptimization to speed up first boot sequence
-ifeq ($(HOST_OS),linux)
-  ifeq ($(TARGET_BUILD_VARIANT),user)
-    ifeq ($(WITH_DEXPREOPT),)
-      WITH_DEXPREOPT := true
-    endif
-  endif
-endif
-WITH_DEXPREOPT_BOOT_IMG_ONLY ?= true
-
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 BOARD_BOOTIMAGE_PARTITION_SIZE := 23068672 # 22M
@@ -135,6 +128,10 @@ USE_DEVICE_SPECIFIC_CAMERA:= true
 HAVE_ADRENO_SOURCE:= false
 
 BOARD_SEPOLICY_DIRS += device/asus/flo/sepolicy
+
+# Media HAL
+BOARD_GLOBAL_CFLAGS += -DQCOM_BSP_LEGACY
+BOARD_GLOBAL_CPPFLAGS += -DQCOM_BSP_LEGACY
 
 # Include an expanded selection of fonts
 EXTENDED_FONT_FOOTPRINT := true
