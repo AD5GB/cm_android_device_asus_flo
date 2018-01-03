@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2016 The CyanogenMod Project
+# Copyright (C) 2013 The Android Open-Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,26 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE       := wpa_supplicant_overlay.conf
-LOCAL_MODULE_TAGS  := optional
-LOCAL_MODULE_CLASS := ETC
-LOCAL_SRC_FILES    := $(LOCAL_MODULE)
-LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/wifi
-include $(BUILD_PREBUILT)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE       := p2p_supplicant_overlay.conf
-LOCAL_MODULE_TAGS  := optional
-LOCAL_MODULE_CLASS := ETC
-LOCAL_SRC_FILES    := $(LOCAL_MODULE)
-LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/wifi
-include $(BUILD_PREBUILT)
+LOCAL_MODULE := sensors.$(TARGET_BOARD_PLATFORM)
 
+LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_PROPRIETARY_MODULE := true
+
+LOCAL_CFLAGS := -DLOG_TAG=\"MultiHal\"
+
+LOCAL_SRC_FILES := \
+    multihal.cpp \
+    SensorEventQueue.cpp \
+
+LOCAL_SHARED_LIBRARIES := \
+    libcutils \
+    libdl \
+    liblog \
+    libutils \
+
+LOCAL_STRIP_MODULE := false
+
+include $(BUILD_SHARED_LIBRARY)
+
+include $(call all-makefiles-under, $(LOCAL_PATH))
